@@ -1,0 +1,21 @@
+#!/bin/bash
+
+REFBED=$1
+MUTBED=$2
+
+TP=$(bedtools intersect -a ${MUTBED} -b ${REFBED} | wc -l)
+FP=$(bedtools intersect -a ${MUTBED} -b ${REFBED} -v | wc -l)
+FN=$(bedtools intersect -b ${MUTBED} -a ${REFBED} -v | wc -l)
+
+sen=$(echo "$TP/($TP+$FN)" | bc -l)
+pre=$(echo "$TP/($TP+$FP)" | bc -l)
+fdr=$(echo "$FP/($TP+$FP)" | bc -l)
+
+
+echo "TP: $TP"
+echo "FP: $FP"
+echo "FN: $FN"
+echo ""
+echo "Sensibilidad: $sen"
+echo "Precisión: $pre"
+echo "FDR: $fdr"

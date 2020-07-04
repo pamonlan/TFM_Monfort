@@ -1,0 +1,13 @@
+#!/bin/bash
+
+BAM=$1
+PATHOUT=$2
+
+
+BASE=$(basename ${BAM} .bam)
+		
+gatk SamToFastq \
+	-I ${BAMIN} \
+	-F ${PATHOUT}/${BASE}_1.fq -F2 ${PATHOUT}/${BASE}_2.fq
+
+

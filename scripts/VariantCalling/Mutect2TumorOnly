@@ -1,0 +1,77 @@
+#!/bin/bash
+
+BAMIN=$1
+wholegenomereference=$2
+PATHOUT=$3
+BED=$4
+
+
+
+BASE=$(basename ${BAMIN} .bam)
+
+PON=/storage/tbc/melanoma/Data_Mutect2/pon.vcf.gz
+GNOMAD=/storage/tbc/melanoma/Data_Mutect2/af-only-gnomad.raw.sites.b37.vcf
+COMMONVCF=/storage/tbc/melanoma/Data_Mutect2/somatic-b37_small_exac_common_3.vcf
+BED=/storage/tbc/melanoma/Skin_bed/Skin_capture_targets_hg19.bed
+source ~/.bashrc
+
+gatk4=/home/pamonlan/biotool/gatk4/gatk-package-4.1.3.0-local.jar
+mkdir ${PATHOUT}
+
+source ~/.bashrc 
+
+mkdir ${PATHOUT}
+
+echo "#####################"
+echo "## VariantCalling  ##"
+echo "#####################"
+
+java -jar $gatk4 Mutect2 \
+	-R ${wholegenomereference} \
+	-I ${BAMIN} \
+	-germline-resource ${GNOMAD} \
+	-pon ${PON} \
+	--f1r2-tar-gz ${PATHOUT}/${BASE}.tar.gz \
+	-O ${PATHOUT}/${BASE}.mutect2.unfiltered.vcf \
+	-L ${BED}
+
+
+java -jar $gatk4 LearnReadOrientationModel \
+	-I ${PATHOUT}/${BASE}.tar.gz \
+	-O ${PATHOUT}/${BASE}.read-model.tar.gz
+
+
+java -jar $gatk4 GetPileupSummaries \
+    -I ${BAMIN} \
+    -V ${COMMONVCF} \
+    -L ${COMMONVCF} \
+    -O ${BASE}.getpileupsummaries.table
+
+
+java -jar $gatk4 CalculateContamination \
+    -I ${BASE}.getpileupsummaries.table \
+    -tumor-segmentation segments.table \
+    -O ${PATHOUT}/${BASE}contamination.table
+
+#Finally, pass the learned read orientation model to FilterMutectCallswith the -ob-priors argument:
+
+
+echo "#####################"
+echo "##    Filtro VCF   ##"
+echo "#####################"
+
+java -jar $gatk4 FilterMutectCalls \
+	-V ${PATHOUT}/${BASE}.mutect2.unfiltered.vcf \
+	-R ${wholegenomereference} \
+	--tumor-segmentation segments.table \
+	--contamination-table ${PATHOUT}/${BASE}contamination.table \
+	--ob-priors ${PATHOUT}/${BASE}.read-model.tar.gz \
+	-O ${PATHOUT}/${BASE}.mutect2.filtered.vcf \
+	-L ${BED}
+cat <(grep -v "germline" ${PATHOUT}/${BASE}.mutect2.filtered.vcf) > ${PATHOUT}/${BASE}.mutect2.vcf
+
+rm ${PATHOUT}/${BASE}.tar.gz ${PATHOUT}/${BASE}.mutect2.unfiltered.vcf* ${BASE}.getpileupsummaries.table 
+rm ${PATHOUT}/${BASE}contamination.table ${PATHOUT}/${BASE}.read-model.tar.gz ${PATHOUT}/${BASE}.mutect2.vcf.filteringStats.tsv
+
+
+cat <(grep "#" ${PATHOUT}/${BASE}.mutect2.vcf) <(grep PASS ${PATHOUT}/${BASE}.mutect2.vcf) > ${PATHOUT}/${BASE}.mutect2.pass.vcf

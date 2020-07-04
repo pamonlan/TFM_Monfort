@@ -1,0 +1,26 @@
+#!/bin/bash 
+
+Sample=$1
+hs37=/storage/tbc/Homo_sapiens/GRCh37/Sequence/WholeGenomeFasta/genome.fa
+
+for snv in $(ls $Sample)
+do
+	echo $snv
+	#snv=snv.80
+	TumorVCF=${Sample}/${snv}/TumorVcf/
+
+	for rep in $(ls $TumorVCF)
+	do
+		BASE=$(basename $rep)
+		REPPATH=${TumorVCF}/${rep}
+		
+		OutPath=${REPPATH}/${BASE}
+		
+		for vc in "mutect2" "pisces" "somvarius" "octopus" "sinvict" "outlyzer"
+		do
+			echo "[+] ${OutPath}.${vc}.vcf"
+			PretreatVCF ${OutPath}.${vc}.vcf ${hs37} ${REPPATH}
+		
+done
+done
+done

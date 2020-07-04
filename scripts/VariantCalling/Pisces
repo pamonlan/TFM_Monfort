@@ -1,0 +1,54 @@
+#!/bin/bash
+
+TUMORBAM=$1
+wholegenomereference=$2
+PATHOUT=$3
+BED=$4
+
+
+BASETUMOR=$(basename ${TUMORBAM} .bam)
+
+
+
+
+
+mkdir ${PATHOUT}
+
+
+
+
+dotnet=~/.local/dotnet
+pisces=~/biotool/Pisces/binaries/5.2.11.163/Pisces/Pisces.dll
+scylla=~/biotool/Pisces/binaries/5.2.11.163/Scylla/Scylla.dll
+vqr=~/biotool/Pisces/binaries/5.2.11.163/VariantQualityRecalibration/VariantQualityRecalibration.dll
+
+echo "##################"
+echo "## Pisces VC    ##"
+echo "##################"
+
+$dotnet $pisces -b ${TUMORBAM} \
+	--callmnvs false \
+	-g ${wholegenomereference} --gvcf false \
+	-i ${BED} \
+	--multiprocess true -t 5 \
+	--minvf 0,0005 --ssfilter false  \
+	--reportnocalls true --threadbychr true -o ${PATHOUT}/
+
+
+$dotnet $vqr -vcf ${PATHOUT}/${BASETUMOR}.vcf -o ${PATHOUT}/
+
+mv ${PATHOUT}/${BASETUMOR}.vcf.recal ${PATHOUT}/${BASETUMOR}.pisces.recal.vcf
+
+
+$dotnet $scylla -bam ${TUMORBAM} \
+	-vcf ${PATHOUT}/${BASETUMOR}.pisces.recal.vcf  \
+	-o ${PATHOUT} -g ${wholegenomereference} --minvf 0,0005
+
+mv ${PATHOUT}/${BASETUMOR}.pisces.recal.phased.vcf ${PATHOUT}/${BASETUMOR}.pisces.vcf
+
+rm -r ${PATHOUT}/${BASETUMOR}.vcf ${PATHOUT}/ScyllaLogs ${PATHOUT}/PiscesLogs ${PATHOUT}/VQRLogs \
+${PATHOUT}/${BASETUMOR}.pisces.recal.vcf
+
+rm -r ${PATHOUT}/${BASETUMOR}.counts ${PATHOUT}/${BASETUMOR}.edgevariants
+
+cat <(grep "#" ${PATHOUT}/${BASETUMOR}.pisces.vcf) <(grep PASS ${PATHOUT}/${BASETUMOR}.pisces.vcf) > ${PATHOUT}/${BASETUMOR}.pisces.pass.vcf

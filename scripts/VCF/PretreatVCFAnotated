@@ -1,0 +1,20 @@
+#!/bin/bash
+VCF=$1
+REF=$2
+PATHOUT=$3
+
+BASE=$(basename $VCF .vcf)
+NORMVCF=$BASE.normal.vcf
+NORMSNPSVCF=$BASE.normal.snps.vcf
+
+SNPEFFJAR=~/biotool/snpEff/snpEff.jar
+
+# decompose, normalize and annotate VCF with snpEff.
+# NOTE: can also swap snpEff with VEP
+zless $VCF \
+   | sed 's/ID=AD,Number=./ID=AD,Number=R/' \
+   | vt decompose -s - \
+   | vt normalize -r $REF - \
+   | java -Xmx60G -jar $SNPEFFJAR GRCh37.75 > ${PATHOUT}/$NORMVCF
+
+

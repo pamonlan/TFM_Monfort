@@ -1,0 +1,46 @@
+#!/bin/bash
+
+TUMORBAM=$1
+wholegenomereference=$2
+PATHOUT=$3
+BED=$4
+
+
+
+BASETUMOR=$(basename ${TUMORBAM} .bam)
+
+
+dbsnpBED=/storage/tbc/melanoma/Data_Mutect2/dbsnp_138.b37.snvs.filter.skinpanel.bed 
+PICKLE=/storage/tbc/melanoma/Data_Mutect2/dbsnp_138.b37.snvs.filter.skinpanel.pickle 
+
+echo "###################"
+echo "## Intersect  ##"
+echo "###################"
+
+#bedtools intersect -a ${TUMORBAM} -b ${BED} -wa > ${BASETUMOR}.temp.bam
+#samtools sort ${BASETUMOR}.temp.bam > ${BASETUMOR}.temp.sort.bam
+#samtools index ${BASETUMOR}.temp.sort.bam
+
+
+
+
+mkdir ${PATHOUT}
+
+echo "###################"
+echo "## SomVarIUS VC  ##"
+echo "###################"
+
+SomVarIUS call_mutations \
+         --bam ${TUMORBAM} \
+         --ref ${wholegenomereference} \
+         --out ${PATHOUT}/${BASETUMOR}.temp.somvarius.vcf \
+         --germ_pos ${PICKLE} \
+         --dbsnp_bed ${dbsnpBED} \
+         --dist ${BASETUMOR}.dist.txt \
+	 --ref_filter --min_af 0.0001 --min_pvalue 0.05 --min_hetero 0.9
+
+bedtools intersect -a ${PATHOUT}/${BASETUMOR}.temp.somvarius.vcf -b ${BED} -header > ${PATHOUT}/${BASETUMOR}.somvarius.vcf
+
+
+
+

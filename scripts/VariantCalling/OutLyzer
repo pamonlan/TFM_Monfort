@@ -1,0 +1,27 @@
+#!/bin/bash
+
+TUMORBAM=$1
+wholegenomereference=$2
+PATHOUT=$3
+BED=$4
+
+BASETUMOR=$(basename ${TUMORBAM} .bam)
+
+
+mkdir ${PATHOUT}
+mkdir ${PATHOUT}/${BASETUMOR}.outlizer/
+
+echo "##################"
+echo "## OutLyzer VC  ##"
+echo "##################"
+
+python2 ~/biotool/outLyzer/outLyzer.py calling \
+	-core 15 -cut 30 \
+	-bam ${TUMORBAM} \
+	-ref ${wholegenomereference} \
+	-output ${PATHOUT}/${BASETUMOR}.outlizer/ \
+	-bed ${BED}
+
+mv ${PATHOUT}/${BASETUMOR}.outlizer/${BASETUMOR}.vcf ${PATHOUT}/${BASETUMOR}.outlyzer.vcf
+rm -r ${PATHOUT}/${BASETUMOR}.outlizer/
+

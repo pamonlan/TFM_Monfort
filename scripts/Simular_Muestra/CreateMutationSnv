@@ -1,0 +1,11 @@
+#!/bin/bash
+N=$1
+BED=$2
+
+shuf -n ${N} ${BED} > snv_${N}.temp.bed
+sed 's/,/./g'  snv_${N}.temp.bed >  snv_${N}.temp.sed.bed
+bedtools sort -i  snv_${N}.temp.sed.bed >  snv_${N}.bed
+rm  snv_${N}.temp.*
+
+
+ 

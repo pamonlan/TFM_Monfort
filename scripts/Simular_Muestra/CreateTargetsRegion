@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+: '
+Script para la seleccion de mutaciones dianas para NA12878.
+Las variantes son las detectadas por Martincorena en muestras de 
+piel(PMID: 25999502)
+Arg:
+	DepthBed (BED) Fichero Bed con las posiciones con
+	un minimo Depth de la muestra
+
+Return
+	Target.bed (BED) Las posibles mutaciones diana
+	presente en el dataset de Martincorena
+'
+DepthBed=$1
+
+PanelBED="/storage/tbc/melanoma/Skin_bed/Skin_capture_targets_hg19.bed "
+HomoBED="/storage/tbc/melanoma/NA12878/Bed/HG001.homocigotas.bed"
+CorenaBed="/storage/tbc/melanoma/NA12878/Bed/Somatic_Reference_snv_NonDuplicates.bed"
+
+BASE=$(basename ${DepthBed} .bed)
+
+#Se intercala las posicienes presentes en el panel y homocigotas en NA12878
+bedtools intersect -a ${PanelBED} -b ${HomoBED} > temp.panel.homo.bed
+#Se intercala las mutaciones de Martincorena con las del panel y Homcigotas
+bedtools intersect -a ${CorenaBed} -b temp.panel.homo.bed > temp.panel.corena.bed
+#Finalmente se obtiene las variantes con un minimo de profundidad
+bedtools intersect -a temp.panel.corena.bed -b ${DepthBed} > temp.${BASE}.target.bed
+
+#Se eliminan posibles duplicados
+sort -k1,1 -k2,2n -k3,3n -u temp.${BASE}.target.bed > ${BASE}.target.bed
+
+NUM=$(wc -l ${BASE}.target.bed)
+echo "Numero de targets para ${DepthBed} es ${NUM}"
+
+rm temp.panel.homo.bed 
+rm temp.panel.corena.bed
+rm temp.${BASE}.target.bed
+

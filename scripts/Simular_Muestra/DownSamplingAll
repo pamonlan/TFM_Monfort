@@ -1,0 +1,24 @@
+#!/bin/bash
+
+BAMPATH=$1
+REALDEPTH=$2
+TRUTHVCF=$3
+
+hs37=/storage/tbc/Homo_sapiens/GRCh37/Sequence/WholeGenomeFasta/genome.fa
+BED=/storage/tbc/melanoma/Data_Mutect2/Skin_capture_targets_hg19.bed
+phs37=/storage/tbc/Homo_sapiens/GRCh37/Sequence/WholeGenomeFasta/
+
+mkdir temp
+
+for depth in "10" "50" "100" "150" "200" "250" "300"
+do
+	frac=$(echo "$depth/$REALDEPTH" | bc -l)
+	for rep in {1..5}
+	do
+	gatk DownsampleSam -I $BAMPATH \
+	-O /storage/tbc/melanoma/Simulacion_artificial/NA12878.wg.recal/depth.${depth}/bam/NA12878.wg.recal.snv.80.${depth}.${rep}.bam \
+	-S Chained -P ${frac} -A 0.0001
+
+	cp $TRUTHVCF /storage/tbc/melanoma/Simulacion_artificial/NA12878.wg.recal/depth.${depth}/TruthVcf/NA12878.wg.recal.snv.80.${depth}.${rep}.truth.vcf 
+done
+done

@@ -1,0 +1,38 @@
+#!/bin/bash
+
+TUMORBAM=$1
+wholegenomereference=$2
+PATHOUT=$3
+BED=$4
+
+
+BASETUMOR=$(basename ${TUMORBAM} .bam)
+
+
+
+
+
+mkdir ${PATHOUT}
+mkdir ${PATHOUT}/${BASETUMOR}
+
+echo "##################"
+echo "## BamReadCount ##"
+echo "##################"
+
+bam-readcount -w 1 -f ${wholegenomereference} -l ${BED} ${TUMORBAM} > ${PATHOUT}/${BASETUMOR}/${BASETUMOR}.readcount
+
+sinvict -t ${PATHOUT}/${BASETUMOR}/ -o ${PATHOUT}/${BASETUMOR}/ -m 20 -f 0.001
+
+touch ${PATHOUT}/${BASETUMOR}/germinal.txt
+
+~/scripts/sinvict2somaticVCF.py ${PATHOUT}/${BASETUMOR}/calls_level1.sinvict \
+${PATHOUT}/${BASETUMOR}/calls_level2.sinvict \
+${PATHOUT}/${BASETUMOR}/calls_level3.sinvict \
+${PATHOUT}/${BASETUMOR}/calls_level4.sinvict \
+${PATHOUT}/${BASETUMOR}/calls_level5.sinvict \
+${PATHOUT}/${BASETUMOR}/calls_level6.sinvict \
+${PATHOUT}/${BASETUMOR}/germinal.txt \
+${PATHOUT}/${BASETUMOR}.sinvict.vcf \
+${wholegenomereference}
+
+#rm -r ${PATHOUT}/${BASETUMOR}/

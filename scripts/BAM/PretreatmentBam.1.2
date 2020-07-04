@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+: '
+Script para el pretatamiento de un fichero BAM
+siguiendo las directrices del Broad Institute
+Arg:
+	BAMIN (BAM) Fichero de alineamiento en formato BAM
+	para pretratar
+
+Return
+	.recal.bam (BAM) Fichero BAM pretratado
+'
+BAMIN=$1
+PATHOUT=$2
+
+
+#
+#Programas
+#
+wholegenomereference=/storage/tbc/Homo_sapiens/GRCh37/Sequence/WholeGenomeFasta/genome.fa
+picard=/home/pamonlan/biotool/picard-tools-1.131/picard.jar
+gatk4=/home/pamonlan/biotool/gatk4/gatk-package-4.1.3.0-local.jar
+gatk3=/home/pamonlan/biotool/gatk3/GenomeAnalysisTK.jar
+
+BASE=$(basename ${BAMIN} .bam)
+
+
+# Ficheros
+dbsnp=/storage/tbc/melanoma/Data_Mutect2/dbsnp_138.b37.vcf.gz
+gold=/storage/tbc/melanoma/Data_Mutect2/Mills_and_1000G_gold_standard.indels.b37.vcf.gz
+phase3=/storage/tbc/melanoma/Data_Mutect2/1000G_phase3_v4_20130502.sites.vcf.gz
+pon=/storage/tbc/melanoma/Data_Mutect2/pon.vcf.gz
+
+
+#source ~/.bashrc 
+
+mkdir ${PATHOUT}
+
+## Sort
+echo "###############"
+echo "## SORTSAM  ##"
+echo "##############"
+
+samtools sort -@ 15 ${BAMIN} -m 20G > ${PATHOUT}/${BASE}.temp.sort.bam 
+
+samtools index -@ 20 ${PATHOUT}/${BASE}.temp.sort.bam 
+
+
+echo "#############"
+echo "## AddTags ##"
+echo "#############"
+ 
+java -jar ${picard} AddOrReplaceReadGroups \
+	I=${PATHOUT}/${BASE}.temp.sort.bam \
+	O=${PATHOUT}/${BASE}.temp.sort.tag.bam \
+	RGLB=${BASE} \
+	RGPL=Illumina \
+	RGPU=${BASE} \
+	RGSM=${BASE}
+
+ 
+touch ${PATHOUT}/${BASE}.metrics
+
+echo "######################"
+echo "## MarcarDuplicados ##"
+echo "######################"
+
+##Marcar duplicados
+sambamba markdup -t 20 ${PATHOUT}/${BASE}.temp.sort.tag.bam ${PATHOUT}/${BASE}.temp.sort.tag.marked.bam 
+
+
+
+
+echo "#################"
+echo "## Realineando ##"
+echo "#################" 
+
+java -Xmx100G -jar ${picard} BuildBamIndex \
+	INPUT=${PATHOUT}/${BASE}.temp.sort.tag.marked.bam
+
+
+##Obtener posiciones de realineamiento
+java -Xmx100G -jar ${gatk3} \
+	-T RealignerTargetCreator \
+	-R ${wholegenomereference} \
+	-o ${PATHOUT}/${BASE}.bam.list \
+ 	-I ${PATHOUT}/${BASE}.temp.sort.tag.marked.bam \
+	--filter_mismatching_base_and_quals 
+
+ 
+
+ 
+##Realineamiento
+
+java -Xmx100G -jar ${gatk3} \
+	-T IndelRealigner \
+	-R ${wholegenomereference} \
+	-I ${PATHOUT}/${BASE}.temp.sort.tag.marked.bam \
+	-targetIntervals ${PATHOUT}/${BASE}.bam.list \
+	-o ${PATHOUT}/${BASE}.temp.sort.tag.marked.realigned.bam \
+	--filter_mismatching_base_and_quals 
+
+
+
+echo "#################"
+echo "## Recalibrado ##"
+echo "#################" 
+
+java -Xmx100G -jar ${gatk4} BaseRecalibrator \
+	-R ${wholegenomereference} \
+	-I ${PATHOUT}/${BASE}.temp.sort.tag.marked.realigned.bam \
+	--known-sites ${dbsnp} \
+	--known-sites ${gold} \
+	--known-sites ${phase3} \
+	-O ${BASE}.table
+
+java -Xmx100G -jar ${gatk4} ApplyBQSR \
+   -R ${wholegenomereference} \
+   -I ${PATHOUT}/${BASE}.temp.sort.tag.marked.realigned.bam \
+   --bqsr-recal-file ${BASE}.table \
+   -O ${PATHOUT}/${BASE}.recal.bam
+
+
+
+
+

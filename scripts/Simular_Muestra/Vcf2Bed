@@ -1,0 +1,9 @@
+VCFPATH=$1
+BASE=$(basename ${VCFPATH} .vcf)
+
+vcf2bed --deletions < ${VCFPATH} > ${BASE}_deletions.bed
+vcf2bed --snvs < ${VCFPATH} > ${BASE}_snvs.bed
+bedops --everything ${BASE}_{deletions,snvs}.bed > ${BASE}.bed
+
+#awk '{print $1 "\t" $2 "\t" $3}' ${BASE}.bed > ${BASE}.clean.bed
+rm ${BASE}_{deletions,snvs}.bed 

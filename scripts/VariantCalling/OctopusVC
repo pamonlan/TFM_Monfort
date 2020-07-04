@@ -1,0 +1,51 @@
+#!/bin/bash
+## Actualizacion: Añadida la frecuencia mínima a 0.0001
+TUMORBAM=$1
+wholegenomereference=$2
+PATHOUT=$3
+BED=$4
+
+GERMFOREST=~/biotool/octopus/resources/forests/germline.v0.6.3-beta.forest
+SOMFOREST=~/biotool/octopus/resources/forests/somatic.v0.6.3-beta.forest
+
+BASETUMOR=$(basename ${TUMORBAM} .bam)
+
+
+BED=/storage/tbc/melanoma/Skin_bed/Skin_capture_targets_hg19.bed
+
+
+mkdir ${PATHOUT}
+#mkdir ${PATHOUT}/${BASETUMOR}.outlizer/
+
+echo "##################"
+echo "## Octopus  VC  ##"
+echo "##################"
+octopus \
+	-R ${wholegenomereference} \
+	-I ${TUMORBAM} 	\
+	-t ${BED} \
+	-C cancer --threads=40\
+	--min-expected-somatic-frequency 0.001 \
+	--min-credible-somatic-frequency 0.001 \
+	-o ${PATHOUT}/${BASETUMOR}.octopus.unfiltered.vcf
+
+echo "######################"
+echo "## Octopus  Filter  ##"
+echo "######################"
+
+octopus \
+	-R ${wholegenomereference} \
+	-I ${TUMORBAM} \
+	-t ${BED} \
+	-C cancer \
+	-o ${PATHOUT}/${BASETUMOR}.octopus.vcf \
+	--filter-vcf ${PATHOUT}/${BASETUMOR}.octopus.unfiltered.vcf \
+	--forest-file ${GERMFOREST} \
+	--min-expected-somatic-frequency 0.001 \
+	--min-credible-somatic-frequency 0.001 \
+	--somatic-forest-file ${SOMFOREST} --threads=40
+
+
+rm ${PATHOUT}/${BASETUMOR}.octopus.unfiltered.vcf
+
+cat <(grep "#" ${PATHOUT}/${BASETUMOR}.octopus.vcf) <(grep SOMATIC ${PATHOUT}/${BASETUMOR}.octopus.vcf) > ${PATHOUT}/${BASETUMOR}.octopus.pass.vcf 
