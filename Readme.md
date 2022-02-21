@@ -1,8 +1,3 @@
-<a href="http://fvcproductions.com"><img src="https://avatars1.githubusercontent.com/u/4284691?v=3&s=200" title="Shaed" alt="Shaed"></a>
-
-
-
-
 # TFMS Shaed Repository
 
 This repositore include all the script developed to the Bioinformatic
